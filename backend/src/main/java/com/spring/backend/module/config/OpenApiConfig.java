@@ -16,7 +16,7 @@ public class OpenApiConfig {
     public OpenAPI openAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Staycation API")
+                        .title("Default API")
                         .description("REST API documentation")
                         .version("1.0.0")
                         .contact(new Contact()

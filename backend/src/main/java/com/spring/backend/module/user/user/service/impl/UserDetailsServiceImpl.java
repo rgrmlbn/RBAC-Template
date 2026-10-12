@@ -19,7 +19,7 @@ public class UserDetailsServiceImpl implements UserDetailsService{
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
 
-        UserEntity user = userRepository.findByEmail(email)
+        UserEntity user = userRepository.findWithRolesByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Invalid email or password."));
 
         return new UserPrincipal(user);

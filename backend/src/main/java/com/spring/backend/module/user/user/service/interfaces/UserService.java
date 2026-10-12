@@ -2,6 +2,7 @@ package com.spring.backend.module.user.user.service.interfaces;
 
 
 
+import com.spring.backend.module.user.auth.dto.request.AssignRolesRequest;
 import com.spring.backend.module.user.user.dto.request.ChangePasswordRequest;
 import com.spring.backend.module.user.user.dto.request.UpdateUserRequest;
 import com.spring.backend.module.user.user.dto.response.UserResponse;
@@ -19,4 +20,6 @@ public interface UserService {
     void changePasswordById(Long id, ChangePasswordRequest request);
 
     void deleteUserById(Long id);
+
+    UserResponse assignRolesById(Long id, AssignRolesRequest request);
 }
