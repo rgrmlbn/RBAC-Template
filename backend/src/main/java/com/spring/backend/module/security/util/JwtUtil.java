@@ -41,10 +41,6 @@ public class JwtUtil {
         return generateToken(new HashMap<>(), userDetails.getUsername(), jwtProperties.getAccessTokenExpiration());
     }
 
-    public String generateAccessToken(Map<String, Object> extraClaims, UserDetails userDetails) {
-        return generateToken(extraClaims, userDetails.getUsername(), jwtProperties.getAccessTokenExpiration());
-    }
-
     private String generateToken(Map<String, Object> extraClaims, String subject, long expiration) {
         return Jwts.builder()
                 .claims(extraClaims)
