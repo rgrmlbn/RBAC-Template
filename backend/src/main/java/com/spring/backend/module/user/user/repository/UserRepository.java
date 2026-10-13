@@ -12,22 +12,22 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     boolean existsByEmail(String email);
     Optional<UserEntity> findByEmail(String email);
 
-    // NEW: loads roles + permissions in one query (used by UserDetailsServiceImpl / JwtFilter)
+    // Desc: loads roles + permissions in one query (used by UserDetailsServiceImpl / JwtFilter)
     @EntityGraph(attributePaths = {"roles", "roles.permissions"})
     Optional<UserEntity> findWithRolesByEmail(String email);
 
-    // NEW: loads roles in one query (used by UserServiceImpl)
+    // Desc: loads roles in one query (used by UserServiceImpl)
     @EntityGraph(attributePaths = "roles")
     Optional<UserEntity> findWithRolesById(Long id);
 
-    // NEW: overrides findAll() so listing users doesn't trigger one query per user for roles
+    // Desc: overrides findAll() so listing users doesn't trigger one query per user for roles
     @Override
     @EntityGraph(attributePaths = "roles")
     List<UserEntity> findAll();
 
-    // NEW: used to protect the last SUPER_ADMIN and to seed the first admin
+    // Desc: used to protect the last SUPER_ADMIN and to seed the first admin
     long countByRolesName(String name);
 
-    // NEW: used to block deleting a role that is still assigned to users
+    // Desc: used to block deleting a role that is still assigned to users
     boolean existsByRolesId(Long roleId);
 }

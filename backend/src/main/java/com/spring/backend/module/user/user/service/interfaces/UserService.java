@@ -11,6 +11,8 @@ import java.util.List;
 
 public interface UserService {
 
+    // ADMIN ENDPOINTS
+
     List<UserResponse> getAllUsers();
 
     UserResponse getUserById(Long id);
@@ -22,4 +24,15 @@ public interface UserService {
     void deleteUserById(Long id);
 
     UserResponse assignRolesById(Long id, AssignRolesRequest request);
+
+    // USERS ENDPOINT
+
+    UserResponse getMe();
+
+    UserResponse updateMe(UpdateUserRequest update);
+
+    void changeMyPassword(ChangePasswordRequest request);
+
+    void deleteMyAccount(Long id);
+
 }
