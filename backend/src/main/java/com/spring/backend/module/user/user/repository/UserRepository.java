@@ -7,27 +7,54 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Persistence operations for {@link UserEntity}.
+ *
+ * <p>User roles and role permissions are lazily loaded. Methods named
+ * {@code findWithRoles...} fetch them eagerly through an entity graph, so they are
+ * safe to use outside a transaction (for example in the JWT filter).
+ */
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
 
     boolean existsByEmail(String email);
+
+    /**
+     * Finds a user by email without loading roles.
+     * Use {@link #findWithRolesByEmail(String)} when authorities are needed.
+     */
     Optional<UserEntity> findByEmail(String email);
 
-    // Desc: loads roles + permissions in one query (used by UserDetailsServiceImpl / JwtFilter)
+    /**
+     * Finds a user by email together with their roles and each role's permissions,
+     * in a single query. Used to build the authenticated principal on every request.
+     */
     @EntityGraph(attributePaths = {"roles", "roles.permissions"})
     Optional<UserEntity> findWithRolesByEmail(String email);
 
-    // Desc: loads roles in one query (used by UserServiceImpl)
+    /**
+     * Finds a user by id together with their roles, in a single query.
+     * Role permissions are not loaded.
+     */
     @EntityGraph(attributePaths = "roles")
     Optional<UserEntity> findWithRolesById(Long id);
 
-    // Desc: overrides findAll() so listing users doesn't trigger one query per user for roles
+    /**
+     * Returns all users with their roles, avoiding one extra query per user (N+1)
+     * when the roles are mapped to a response.
+     */
     @Override
     @EntityGraph(attributePaths = "roles")
     List<UserEntity> findAll();
 
-    // Desc: used to protect the last SUPER_ADMIN and to seed the first admin
+    /**
+     * Counts the users holding the role with the given name.
+     * Used to ensure the last SUPER_ADMIN is never removed or demoted.
+     */
     long countByRolesName(String name);
 
-    // Desc: used to block deleting a role that is still assigned to users
+    /**
+     * Checks whether any user is assigned the role with the given id.
+     * Used to block deleting a role that is still in use.
+     */
     boolean existsByRolesId(Long roleId);
 }

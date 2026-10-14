@@ -23,5 +23,5 @@ public class ChangePasswordRequest {
     private String newPassword;
 
     @NotBlank(message = "Please confirm your new password")
-    private String confirmPassword; // checked in service layer: newPassword.equals(confirmPassword)
+    private String confirmPassword;
 }

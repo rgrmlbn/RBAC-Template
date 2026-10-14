@@ -20,6 +20,6 @@ public class UpdateUserRequest {
     @Size(min = 5, max = 50)
     private String name;
 
-    @Email(message = "Provide a valid email address") // Validates email
-    private String email; // New email
+    @Email(message = "Provide a valid email address")
+    private String email;
 }

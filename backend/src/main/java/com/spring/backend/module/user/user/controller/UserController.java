@@ -16,45 +16,118 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * REST endpoints for user management.
+ *
+ * <p>Endpoints under {@code /me} act on the authenticated user's own account and
+ * only require a valid login. All other endpoints act on any user and require
+ * the permission noted on each method.
+ */
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 @Validated
 public class UserController {
 
-    // "self" = the id in the URL belongs to the logged-in user (principal is UserPrincipal)
-    private static final String SELF = "#id == authentication.principal.user.id";
-
     private final UserService userService;
 
+    /**
+     * Returns the authenticated user's profile, including their roles.
+     *
+     * @return 200 with the user's profile
+     */
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> getMe() {
+        return ResponseEntity.ok(userService.getMe());
+    }
+
+    /**
+     * Updates the authenticated user's name and/or email.
+     * Fields that are null or blank are left unchanged.
+     *
+     * @param update the fields to change
+     * @return 200 with the updated profile, or 409 if the email is already taken
+     */
+    @PatchMapping("/me")
+    public ResponseEntity<UserResponse> updateMe(@RequestBody @Valid UpdateUserRequest update) {
+        return ResponseEntity.ok(userService.updateMe(update));
+    }
+
+    /**
+     * Changes the authenticated user's password.
+     * All refresh tokens are revoked, so the user must log in again on every device.
+     *
+     * @param request the current password, the new password and its confirmation
+     * @return 204 on success, 401 if the current password is wrong,
+     *         400 if the confirmation does not match or the new password is reused
+     */
+    @PatchMapping("/me/change-password")
+    public ResponseEntity<Void> changeMyPassword(@RequestBody @Valid ChangePasswordRequest request) {
+        userService.changeMyPassword(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Deletes the authenticated user's own account.
+     * The id in the path must match the authenticated user's id.
+     *
+     * @param id the id of the account to delete (must be the caller's own)
+     * @return 204 on success, 403 if the id belongs to another user,
+     *         409 if the caller is the last SUPER_ADMIN
+     */
+    @DeleteMapping("/me/{id}")
+    public ResponseEntity<Void> deleteMyAccount(@PathVariable @Positive Long id) {
+        userService.deleteMyAccount(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Lists all users.
+     * Requires {@code USER_READ}.
+     *
+     * @return 200 with every user
+     */
     @GetMapping
     @PreAuthorize("hasAuthority('" + Perm.USER_READ + "')")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
+    /**
+     * Returns a single user by id.
+     * Requires {@code USER_READ}.
+     *
+     * @param id the user's id
+     * @return 200 with the user, or 404 if not found
+     */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('" + Perm.USER_READ + "') or " + SELF)
+    @PreAuthorize("hasAuthority('" + Perm.USER_READ + "')")
     public ResponseEntity<UserResponse> getUserById(@PathVariable @Positive Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
+    /**
+     * Updates a user's name and/or email.
+     * Requires {@code USER_UPDATE}.
+     *
+     * @param id     the user's id
+     * @param update the fields to change
+     * @return 200 with the updated user, 404 if not found, or 409 if the email is already taken
+     */
     @PatchMapping("/{id}/update")
-    @PreAuthorize("hasAuthority('" + Perm.USER_UPDATE + "') or " + SELF)
+    @PreAuthorize("hasAuthority('" + Perm.USER_UPDATE + "')")
     public ResponseEntity<UserResponse> updateUserById(@PathVariable @Positive Long id,
                                                        @RequestBody @Valid UpdateUserRequest update) {
         return ResponseEntity.ok(userService.updateUserById(id, update));
     }
 
-    // Own password only: your service verifies the current password, so nobody else should call this for you
-    @PatchMapping("/{id}/change-password")
-    @PreAuthorize(SELF)
-    public ResponseEntity<Void> changePasswordById(@PathVariable @Positive Long id,
-                                                   @RequestBody @Valid ChangePasswordRequest changePassword) {
-        userService.changePasswordById(id, changePassword);
-        return ResponseEntity.noContent().build();
-    }
-
+    /**
+     * Deletes a user and revokes their refresh tokens.
+     * Requires {@code USER_DELETE}.
+     *
+     * @param id the user's id
+     * @return 204 on success, 404 if not found, or 409 if the user is the last SUPER_ADMIN
+     */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('" + Perm.USER_DELETE + "')")
     public ResponseEntity<Void> deleteUserById(@PathVariable @Positive Long id) {
@@ -62,7 +135,16 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    // NEW
+    /**
+     * Replaces the roles assigned to a user.
+     * Requires {@code USER_ASSIGN_ROLE}. The caller can only grant roles whose
+     * permissions they already hold.
+     *
+     * @param id      the user's id
+     * @param request the ids of the roles the user should end up with
+     * @return 200 with the updated user, 403 if the grant would escalate privileges,
+     *         404 if the user or a role is not found, or 409 if it would remove the last SUPER_ADMIN
+     */
     @PutMapping("/{id}/roles")
     @PreAuthorize("hasAuthority('" + Perm.USER_ASSIGN_ROLE + "')")
     public ResponseEntity<UserResponse> assignRoles(@PathVariable @Positive Long id,

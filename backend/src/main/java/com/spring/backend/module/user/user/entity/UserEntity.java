@@ -27,7 +27,6 @@ public class UserEntity extends BaseEntity {
     @Column(nullable = false)
     private String password;
 
-    // CHANGED: roles. @Builder.Default is required, otherwise the builder leaves this null.
     @Builder.Default
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "user_roles",
