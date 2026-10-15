@@ -10,7 +10,7 @@ import com.spring.backend.module.exception.user.user.PasswordReuseException;
 import com.spring.backend.module.security.permission.RoleNames;
 import com.spring.backend.module.security.util.CurrentUser;
 import com.spring.backend.module.security.util.EscalationGuard;
-import com.spring.backend.module.user.auth.dto.request.AssignRolesRequest;
+import com.spring.backend.module.user.user.dto.request.AssignRolesRequest;
 import com.spring.backend.module.user.permission.entity.PermissionEntity;
 import com.spring.backend.module.user.role.entity.RoleEntity;
 import com.spring.backend.module.user.role.repository.RoleRepository;

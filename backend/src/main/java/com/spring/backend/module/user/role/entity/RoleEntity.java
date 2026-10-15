@@ -3,9 +3,7 @@ package com.spring.backend.module.user.role.entity;
 import com.spring.backend.module.shared.entity.BaseEntity;
 import com.spring.backend.module.user.permission.entity.PermissionEntity;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -14,6 +12,8 @@ import java.util.Set;
 @Table(name = "roles")
 @Getter
 @Setter
+@Builder
+@AllArgsConstructor
 @NoArgsConstructor
 public class RoleEntity extends BaseEntity {
 
