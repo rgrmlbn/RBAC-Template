@@ -22,7 +22,7 @@ public class RoleEntity extends BaseEntity {
 
     private String description;
 
-    // Built-in roles (SUPER_ADMIN, USER) are protected from deletion/renaming
+    // → Built-in roles (SUPER_ADMIN, USER) are protected from deletion/renaming
     @Column(nullable = false)
     private boolean systemRole = false;
 

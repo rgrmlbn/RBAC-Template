@@ -98,7 +98,7 @@ public class RoleServiceImpl implements RoleService {
                 .build();
 
         if (request.getPermissions() != null && !request.getPermissions().isEmpty()) {
-            // Prevent assigning permissions that the caller is not authorized to grant.
+            // → Prevent assigning permissions that the caller is not authorized to grant.
             escalationGuard.assertCanGrant(request.getPermissions());
 
             role.setPermissions(resolvePermissions(request.getPermissions()));
@@ -129,7 +129,7 @@ public class RoleServiceImpl implements RoleService {
             String name = normalize(request.getName());
 
             if (!name.equals(role.getName())) {
-                // Preserve system role names to protect built-in security rules.
+                // → Preserve system role names to protect built-in security rules.
                 if (role.isSystemRole()) {
                     throw new RoleProtectedException();
                 }
@@ -166,12 +166,12 @@ public class RoleServiceImpl implements RoleService {
     public RoleResponse setPermissions(Long id, SetRolePermissionsRequest request) {
         RoleEntity role = find(id);
 
-        // SUPER_ADMIN must retain its permissions to prevent the system from being locked out.
+        // → SUPER_ADMIN must retain its permissions to prevent the system from being locked out.
         if (RoleNames.SUPER_ADMIN.equals(role.getName())) {
             throw new RoleProtectedException();
         }
 
-        // Prevent granting permissions beyond the caller's authorized privileges.
+        // → Prevent granting permissions beyond the caller's authorized privileges.
         escalationGuard.assertCanGrant(request.getPermissions());
 
         role.setPermissions(resolvePermissions(request.getPermissions()));
@@ -192,12 +192,12 @@ public class RoleServiceImpl implements RoleService {
     public void deleteRole(Long id) {
         RoleEntity role = find(id);
 
-        // System roles are required for the application's built-in security rules.
+        // → System roles are required for the application's built-in security rules.
         if (role.isSystemRole()) {
             throw new RoleProtectedException();
         }
 
-        // Prevent deleting a role that is still assigned to users.
+        // → Prevent deleting a role that is still assigned to users.
         if (userRepository.existsByRolesId(id)) {
             throw new RoleInUseException();
         }
@@ -205,7 +205,7 @@ public class RoleServiceImpl implements RoleService {
         roleRepository.delete(role);
     }
 
-    // HELPER METHODS
+    // HELPER
 
     /**
      * Finds a role by ID with its permissions loaded.
@@ -232,7 +232,7 @@ public class RoleServiceImpl implements RoleService {
     private Set<PermissionEntity> resolvePermissions(Set<String> names) {
         Set<PermissionEntity> found = new HashSet<>(permissionRepository.findAllByNameIn(names));
 
-        // Detect unknown permission names because findAllByNameIn skips unmatched names.
+        // → Detect unknown permission names because findAllByNameIn skips unmatched names.
         if (found.size() != names.size()) {
             throw new ResourceNotFoundException("Permission");
         }

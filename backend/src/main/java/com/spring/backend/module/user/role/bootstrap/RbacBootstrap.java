@@ -64,16 +64,24 @@ public class RbacBootstrap implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
 
-        // 1. Ensure every declared permission exists in the database.
+        // → Ensure every declared permission exists in the database.
         Map<String, PermissionEntity> permissions = new HashMap<>();
         permissionRepository.findAll().forEach(p -> permissions.put(p.getName(), p));
 
         for (String name : Perm.all()) {
-            // Insert only missing permissions to keep startup idempotent.
-            permissions.computeIfAbsent(name, n -> permissionRepository.save(new PermissionEntity(n)));
+            // → Create the permission only if it does not already exist in the map.
+            if (!permissions.containsKey(name)) {
+                PermissionEntity permission = PermissionEntity.builder()
+                        .name(name)
+                        .build();
+
+                permission = permissionRepository.save(permission);
+
+                permissions.put(name, permission);
+            }
         }
 
-        // 2. Create or synchronize the built-in SUPER_ADMIN role.
+        // → Create or synchronize the built-in SUPER_ADMIN role.
         RoleEntity superAdmin = roleRepository.findByName(RoleNames.SUPER_ADMIN).orElseGet(() -> {
 
             RoleEntity r = RoleEntity.builder()
@@ -85,11 +93,11 @@ public class RbacBootstrap implements ApplicationRunner {
             return r;
         });
 
-        // Ensure SUPER_ADMIN always has every declared permission.
+        // → Ensure SUPER_ADMIN always has every declared permission.
         superAdmin.setPermissions(new HashSet<>(permissions.values()));
         superAdmin = roleRepository.save(superAdmin);
 
-        // Create the default USER role only when it does not already exist.
+        // → Create the default USER role only when it does not already exist.
         roleRepository.findByName(RoleNames.USER).orElseGet(() -> {
 
             RoleEntity r = RoleEntity.builder()
@@ -101,7 +109,8 @@ public class RbacBootstrap implements ApplicationRunner {
             return roleRepository.save(r);
         });
 
-        // 3. Create the initial SUPER_ADMIN account when configuration allows it.
+        // → Create the initial SUPER_ADMIN only with configured credentials,
+        //   no existing SUPER_ADMIN, and an unused email.
         if (!adminEmail.isBlank() && !adminPassword.isBlank()
                 && userRepository.countByRolesName(RoleNames.SUPER_ADMIN) == 0
                 && !userRepository.existsByEmail(adminEmail)) {
@@ -112,7 +121,7 @@ public class RbacBootstrap implements ApplicationRunner {
                     .password(passwordEncoder.encode(adminPassword))
                     .build();
 
-            // Assign the built-in SUPER_ADMIN role to the initial administrator.
+            // → Assign the built-in SUPER_ADMIN role to the initial administrator.
             admin.getRoles().add(superAdmin);
             userRepository.save(admin);
 

@@ -31,8 +31,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
      */
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        // Roles and permissions must be fetched here: callers such as the JWT filter run
-        // outside a transaction, so lazy loading would fail later in getAuthorities()
+        // → Roles and permissions must be fetched here: callers such as the JWT filter run outside a transaction, so lazy loading would fail later in getAuthorities()
         UserEntity user = userRepository.findWithRolesByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Invalid email or password."));
 

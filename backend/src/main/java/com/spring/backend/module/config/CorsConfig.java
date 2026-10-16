@@ -1,3 +1,4 @@
+
 package com.spring.backend.module.config;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -12,21 +13,37 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
+    // → Load the allowed frontend origins from the application configuration.
     @Value("${app.cors.allowed-origins}")
     private List<String> allowedOrigins;
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        // → Create a CORS configuration to control which frontend requests are allowed.
         CorsConfiguration config = new CorsConfiguration();
 
+        // → Allow requests only from the configured frontend origins.
         config.setAllowedOrigins(allowedOrigins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
-        config.setExposedHeaders(List.of("Authorization"));
-        config.setAllowCredentials(true);
-        config.setMaxAge(3600L); // cache preflight response for 1 hour
 
+        // → Allow the specified HTTP methods for cross-origin requests.
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+
+        // → Allow the specified headers in incoming cross-origin requests.
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+
+        // → Allow the frontend to read the Authorization header from responses.
+        config.setExposedHeaders(List.of("Authorization"));
+
+        // → Allow credentials, such as cookies, to be included in cross-origin requests.
+        config.setAllowCredentials(true);
+
+        // → Cache preflight responses for one hour to reduce repeated OPTIONS requests.
+        config.setMaxAge(3600L);
+
+        // → Create a configuration source that maps CORS rules to URL patterns.
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        // → Apply the CORS configuration to all endpoints in the application.
         source.registerCorsConfiguration("/**", config);
 
         return source;

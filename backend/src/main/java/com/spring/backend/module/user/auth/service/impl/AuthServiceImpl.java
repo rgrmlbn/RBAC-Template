@@ -66,7 +66,7 @@ public class AuthServiceImpl implements AuthService {
             throw new DuplicateEmailException();
         }
 
-        // The USER role is created by RbacBootstrap at startup. If it is missing, the application is misconfigured, which is a server error rather than a client one.
+        // → The USER role is created by RbacBootstrap at startup. If it is missing, the application is misconfigured, which is a server error rather than a client one.
         RoleEntity defaultRole = roleRepository.findByName(RoleNames.USER)
                 .orElseThrow(() -> new IllegalStateException(
                         "Default role " + RoleNames.USER + " is missing; RbacBootstrap has not run"));
@@ -87,7 +87,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
 
-        // Check rate limits before authenticating to prevent blocked callers from repeatedly attempting to guess passwords.
+        // → Check rate limits before authenticating to prevent blocked callers from repeatedly attempting to guess passwords.
         loginRateLimiterService.checkLimits(request.getEmail());
 
         Authentication authentication = authenticationManager.authenticate(
@@ -115,7 +115,7 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse refreshToken(RefreshTokenRequest request) {
         RefreshToken oldToken = refreshTokenService.validateRefreshToken(request.getRefreshToken());
 
-        // Only the user's email is needed to issue the access token, so roles do not need to be loaded here.
+        // → Only the user's email is needed to issue the access token, so roles do not need to be loaded here.
         UserPrincipal principal = new UserPrincipal(oldToken.getUser());
 
         String newRefreshToken = refreshTokenService.rotateRefreshToken(oldToken);
@@ -138,12 +138,12 @@ public class AuthServiceImpl implements AuthService {
     public void logout() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        // JwtFilter stores the raw access token as the authentication credentials.
+        // → JwtFilter stores the raw access token as the authentication credentials.
         if (authentication == null || !(authentication.getCredentials() instanceof String accessToken)) {
             throw new AccessDeniedException("Not authenticated");
         }
 
-        // A reference is sufficient because deleting tokens only requires the user's ID.
+        // → A reference is sufficient because deleting tokens only requires the user's ID.
         UserEntity user = userRepository.getReferenceById(CurrentUser.id());
 
         refreshTokenService.deleteAllByUser(user);

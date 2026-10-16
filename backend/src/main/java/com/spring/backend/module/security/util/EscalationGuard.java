@@ -14,6 +14,13 @@ import java.util.stream.Collectors;
 @Component
 public class EscalationGuard {
 
+    /**
+     * Rejects granting any permission the authenticated caller does not hold.
+     *
+     * @param permissionNames permissions being granted
+     * @throws AccessDeniedException if there is no authenticated caller or the
+     *         caller lacks any requested permission
+     */
     public void assertCanGrant(Collection<String> permissionNames) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) {

@@ -18,7 +18,7 @@ public class UserMapper {
     public UserEntity toEntity(RegisterRequest request) {
         return UserEntity.builder()
                 .name(request.getName())
-                .email(request.getEmail()) // FIX: was missing, email is nullable=false
+                .email(request.getEmail())
                 .password(request.getPassword())
                 .build();
     }
@@ -30,7 +30,7 @@ public class UserMapper {
                 .email(user.getEmail())
                 .roles(user.getRoles().stream()
                         .map(RoleEntity::getName)
-                        .collect(Collectors.toCollection(TreeSet::new))) // NEW
+                        .collect(Collectors.toCollection(TreeSet::new)))
                 .build();
     }
 

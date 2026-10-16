@@ -41,7 +41,7 @@ public class LoginRateLimiterServiceImpl implements LoginRateLimiterService {
     @Override
     public void checkLimits(String email) {
 
-        // Apply separate limits to the email address and the client's IP address.
+        // → Apply separate limits to the email address and the client's IP address.
         checkEmailLimit(email);
         checkIpLimit(ipExtractor.getClientIp());
     }
@@ -53,10 +53,10 @@ public class LoginRateLimiterServiceImpl implements LoginRateLimiterService {
      */
     private void checkEmailLimit(String email) {
 
-        // Retrieve the capacity and refill interval configured for email-based limits.
+        // → Retrieve the capacity and refill interval configured for email-based limits.
         var cfg = loginRateLimitProperties.getEmail();
 
-        // Use the email address to maintain a separate bucket for each account.
+        // → Use the email address to maintain a separate bucket for each account.
         check("rate_limit:email:" + email, cfg.getCapacity(),
                 Duration.ofMinutes(cfg.getRefillMinutes()));
     }
@@ -68,10 +68,10 @@ public class LoginRateLimiterServiceImpl implements LoginRateLimiterService {
      */
     private void checkIpLimit(String ip) {
 
-        // Retrieve the capacity and refill interval configured for IP-based limits.
+        // → Retrieve the capacity and refill interval configured for IP-based limits.
         var cfg = loginRateLimitProperties.getIp();
 
-        // Use the IP address to maintain a separate bucket for each client.
+        // → Use the IP address to maintain a separate bucket for each client.
         check("rate_limit:ip:" + ip, cfg.getCapacity(),
                 Duration.ofMinutes(cfg.getRefillMinutes()));
     }
@@ -89,7 +89,7 @@ public class LoginRateLimiterServiceImpl implements LoginRateLimiterService {
      */
     private void check(String key, int capacity, Duration window) {
 
-        // Define the bucket's token capacity and refill policy.
+        // → Define the bucket's token capacity and refill policy.
         Supplier<BucketConfiguration> config = () -> BucketConfiguration.builder()
                 .addLimit(Bandwidth.builder()
                         .capacity(capacity)
@@ -97,10 +97,10 @@ public class LoginRateLimiterServiceImpl implements LoginRateLimiterService {
                         .build())
                 .build();
 
-        // Retrieve or create the distributed bucket associated with this key.
+        // → Retrieve or create the distributed bucket associated with this key.
         var bucket = proxyManager.builder().build(key, config);
 
-        // Consume one token for the attempt; reject the request when the limit is reached.
+        // → Consume one token for the attempt; reject the request when the limit is reached.
         if (!bucket.tryConsume(1)) {
             throw new TooManyRequestsException();
         }

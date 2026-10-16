@@ -39,7 +39,7 @@ public class PermissionController {
     @PreAuthorize("hasAuthority('" + Perm.ROLE_READ + "')")
     public ResponseEntity<List<PermissionResponse>> getAllPermissions() {
 
-        // Retrieve permissions, convert them to response DTOs, and sort by name.
+        // → Retrieve permissions, convert them to response DTOs, and sort by name.
         return ResponseEntity.ok(permissionRepository.findAll().stream()
                 .map(p -> PermissionResponse.builder()
                         .id(p.getId())

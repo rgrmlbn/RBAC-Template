@@ -19,7 +19,7 @@ public class RoleMapper {
                 .name(role.getName())
                 .permissions(role.getPermissions().stream()
                         .map(PermissionEntity::getName)
-                        .collect(Collectors.toCollection(() -> new TreeSet<>()))) // NEW
+                        .collect(Collectors.toCollection(() -> new TreeSet<>())))
                 .build();
     }
 }

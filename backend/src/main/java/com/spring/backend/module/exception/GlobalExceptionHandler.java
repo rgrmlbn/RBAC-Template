@@ -31,21 +31,21 @@ public class GlobalExceptionHandler {
 
     private final ApiResponseBuilder apiResponseBuilder;
 
-    // Default
+    // → DEFAULT
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse> handleException(Exception ex) {
         return apiResponseBuilder.error(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
 
-    // Common
+    // → COMMON
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
         return apiResponseBuilder.error(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
-    // User
+    // → USER
 
     @ExceptionHandler(DuplicateEmailException.class)
     public ResponseEntity<ApiResponse> handleDuplicateEmailException(DuplicateEmailException ex) {
@@ -67,7 +67,7 @@ public class GlobalExceptionHandler {
         return apiResponseBuilder.error(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
-    // Auth
+    // → AUTH
 
     @ExceptionHandler(InvalidTokenException.class)
     public ResponseEntity<ApiResponse> handleInvalidTokenException(InvalidTokenException ex) {
@@ -89,7 +89,7 @@ public class GlobalExceptionHandler {
         return apiResponseBuilder.error(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
     }
 
-    // Built-in
+    // → BUILT-IN
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponse> handleBadCredentialsException(BadCredentialsException ex) {

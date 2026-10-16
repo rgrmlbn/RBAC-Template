@@ -100,7 +100,7 @@ public class UserServiceImpl implements UserService {
         }
 
         if (update.getEmail() != null && !update.getEmail().isBlank()) {
-            // Only hit the database when the email actually changes
+            // → Only hit the database when the email actually changes
             if (!user.getEmail().equals(update.getEmail())
                     && userRepository.existsByEmail(update.getEmail())) {
                 throw new DuplicateEmailException();
@@ -141,7 +141,7 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
-        // Force re-login everywhere; existing access tokens expire on their own
+        // → Force re-login everywhere; existing access tokens expire on their own
         refreshTokenService.deleteAllByUser(user);
     }
 
@@ -163,7 +163,7 @@ public class UserServiceImpl implements UserService {
             throw new LastSuperAdminException();
         }
 
-        // Access tokens are not stored server-side, so revoking refresh tokens is what stops the deleted user from renewing their session
+        // → Access tokens are not stored server-side, so revoking refresh tokens is what stops the deleted user from renewing their session
         refreshTokenService.deleteAllByUser(user);
         userRepository.delete(user);
     }
@@ -189,13 +189,13 @@ public class UserServiceImpl implements UserService {
         Set<Long> requestedIds = request.getRoleIds();
         List<RoleEntity> roles = roleRepository.findAllById(requestedIds);
 
-        // findAllById silently skips unknown ids, so compare sizes to detect them
+        // → findAllById silently skips unknown ids, so compare sizes to detect them
         if (roles.size() != requestedIds.size()) {
             throw new ResourceNotFoundException("Role");
         }
 
-        // Prevent privilege escalation: callers can only grant permissions they hold.
-        // Role permissions are LAZY, so this must run inside the transaction.
+        // → Prevent privilege escalation: callers can only grant permissions they hold.
+        // → Role permissions are LAZY, so this must run inside the transaction.
         Set<String> permissionsToGrant = roles.stream()
                 .flatMap(role -> role.getPermissions().stream())
                 .map(PermissionEntity::getName)
@@ -262,7 +262,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void deleteMyAccount(Long id) {
-        // Compare against the token's id before touching the database
+        // → Compare against the token's id before touching the database
         if (!CurrentUser.id().equals(id)) {
             throw new AccessDeniedException("Cannot delete another user's account");
         }
@@ -270,7 +270,7 @@ public class UserServiceImpl implements UserService {
         deleteUserById(id);
     }
 
-    // HELPER METHODS
+    // HELPER
 
     /**
      * Finds a user by ID with their roles loaded.

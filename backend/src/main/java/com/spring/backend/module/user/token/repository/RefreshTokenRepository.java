@@ -4,23 +4,42 @@ import com.spring.backend.module.user.token.entity.RefreshToken;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
-@Repository
+/**
+ * Repository for managing refresh token records.
+ *
+ * <p>Provides database operations for retrieving, deleting, and revoking
+ * refresh tokens associated with user accounts.
+ */
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 
+    /**
+     * Finds a refresh token by its token value.
+     *
+     * @param token the refresh token value to search for
+     * @return an {@link Optional} containing the matching refresh token, if found
+     */
     Optional<RefreshToken> findByToken(String token);
 
-    @Modifying
-    @Transactional
-    @Query("DELETE FROM RefreshToken rt WHERE rt.user.id = :userId")
+    /**
+     * Deletes all refresh tokens associated with a user.
+     *
+     * @param userId the ID of the user whose refresh tokens should be deleted
+     */
     void deleteAllByUserId(Long userId);
 
+    /**
+     * Marks all refresh tokens belonging to a user as revoked.
+     *
+     * <p>Uses a bulk update query to revoke the user's tokens without
+     * loading each token entity individually.
+     *
+     * @param userId the ID of the user whose refresh tokens should be revoked
+     */
     @Modifying
-    @Transactional
     @Query("UPDATE RefreshToken rt SET rt.revoked = true WHERE rt.user.id = :userId")
-    void revokeAllByUserId(Long userId);
+    void revokeAllByUserId(@Param("userId") Long userId);
 }
