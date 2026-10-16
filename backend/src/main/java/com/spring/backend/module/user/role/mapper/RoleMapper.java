@@ -17,6 +17,7 @@ public class RoleMapper {
         return RoleResponse.builder()
                 .id(role.getId())
                 .name(role.getName())
+                .description(role.getDescription())
                 .permissions(role.getPermissions().stream()
                         .map(PermissionEntity::getName)
                         .collect(Collectors.toCollection(() -> new TreeSet<>())))

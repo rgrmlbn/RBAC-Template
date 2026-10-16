@@ -204,6 +204,7 @@ public class UserServiceImpl implements UserService {
 
         boolean losesSuperAdmin = isSuperAdmin(user)
                 && roles.stream().noneMatch(role -> RoleNames.SUPER_ADMIN.equals(role.getName()));
+
         if (losesSuperAdmin && isLastSuperAdmin()) {
             throw new LastSuperAdminException();
         }

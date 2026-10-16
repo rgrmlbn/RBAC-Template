@@ -98,10 +98,12 @@ public class RoleServiceImpl implements RoleService {
                 .build();
 
         if (request.getPermissions() != null && !request.getPermissions().isEmpty()) {
+            Set<PermissionEntity> permissions = resolvePermissions(request.getPermissions());
+
             // → Prevent assigning permissions that the caller is not authorized to grant.
             escalationGuard.assertCanGrant(request.getPermissions());
 
-            role.setPermissions(resolvePermissions(request.getPermissions()));
+            role.setPermissions(permissions);
         }
 
         return roleMapper.toResponse(roleRepository.save(role));
@@ -171,10 +173,12 @@ public class RoleServiceImpl implements RoleService {
             throw new RoleProtectedException();
         }
 
+        Set<PermissionEntity> permissions = resolvePermissions(request.getPermissions());
+
         // → Prevent granting permissions beyond the caller's authorized privileges.
         escalationGuard.assertCanGrant(request.getPermissions());
 
-        role.setPermissions(resolvePermissions(request.getPermissions()));
+        role.setPermissions(permissions);
 
         return roleMapper.toResponse(roleRepository.save(role));
     }

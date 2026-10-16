@@ -13,5 +13,6 @@ public class UserResponse {
     private String name;
     private String email;
     private java.util.Set<String> roles;
+    private java.util.Set<String> permissions;
 
 }

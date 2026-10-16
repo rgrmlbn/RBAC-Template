@@ -32,18 +32,18 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findWithRolesByEmail(String email);
 
     /**
-     * Finds a user by id together with their roles, in a single query.
-     * Role permissions are not loaded.
+     * Finds a user by id together with their roles and role permissions,
+     * in a single query.
      */
-    @EntityGraph(attributePaths = "roles")
+    @EntityGraph(attributePaths = {"roles", "roles.permissions"})
     Optional<UserEntity> findWithRolesById(Long id);
 
     /**
-     * Returns all users with their roles, avoiding one extra query per user (N+1)
-     * when the roles are mapped to a response.
+     * Returns all users with their roles and permissions, avoiding extra queries
+     * when they are mapped to responses.
      */
     @Override
-    @EntityGraph(attributePaths = "roles")
+    @EntityGraph(attributePaths = {"roles", "roles.permissions"})
     List<UserEntity> findAll();
 
     /**
