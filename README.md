@@ -32,7 +32,7 @@ A Spring Boot REST API for authentication and role-based access control (RBAC). 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/rgrmlbn/Default.git
+git clone https://github.com/rgrmlbn/RBAC-Template.git
 cd Default
 ```
 
