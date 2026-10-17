@@ -65,4 +65,9 @@ public class UserPrincipal implements UserDetails {
         // → Expose the underlying user entity for use in services or method-level security expressions.
         return user;
     }
+
+    public Long getId() {
+        // -> Expose the user's unique identifier for use in services or method-level security expressions.
+        return user.getId();
+    }
 }

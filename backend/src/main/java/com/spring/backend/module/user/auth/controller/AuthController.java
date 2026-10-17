@@ -60,7 +60,7 @@ public class AuthController {
      * @param request the refresh token
      * @return 200 with the new tokens, or 401 if the token is invalid, expired or revoked
      */
-    @PostMapping("/refresh")
+    @PostMapping("/refresh-token")
     public ResponseEntity<AuthResponse> refreshToken(@RequestBody @Valid RefreshTokenRequest request) {
         return ResponseEntity.ok(authService.refreshToken(request));
     }

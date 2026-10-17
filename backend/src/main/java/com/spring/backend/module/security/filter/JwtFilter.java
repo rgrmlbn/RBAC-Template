@@ -1,10 +1,11 @@
 package com.spring.backend.module.security.filter;
 
+import com.spring.backend.module.security.principal.UserPrincipal;
 import com.spring.backend.module.security.util.JwtUtil;
 import com.spring.backend.module.user.token.service.interfaces.TokenBlacklistService;
+import com.spring.backend.module.user.user.service.interfaces.UserIdDetailsService;
 import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.security.SignatureException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,8 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -22,99 +22,87 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Filter that validates JWT access tokens for incoming HTTP requests.
+ * Authenticates requests that carry a valid bearer token.
  *
- * <p>Extracts the bearer token from the Authorization header, rejects
- * blacklisted or invalid tokens, and establishes the authenticated user's
- * security context when the token is valid.
+ * <p>The token's subject is the user id. The user is loaded from the database on every
+ * request, so roles and permissions are always current and are not stored in the token.
  *
- * <p>Runs once per request to avoid processing the same request multiple
- * times within the filter chain.
+ * <p>This filter never rejects a request itself. When the token is missing, invalid,
+ * expired, blacklisted or refers to a deleted user, the request simply continues
+ * unauthenticated, and the security configuration responds with 401 where authentication
+ * is required.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class JwtFilter extends OncePerRequestFilter {
 
+    private static final String BEARER_PREFIX = "Bearer ";
+
     private final JwtUtil jwtUtil;
-    private final UserDetailsService userDetailsService;
+    private final UserIdDetailsService userIdDetailsService;
     private final TokenBlacklistService tokenBlacklistService;
 
     /**
-     * Processes the request's JWT and establishes authentication when valid.
+     * Establishes authentication for the request when its bearer token is valid.
      *
-     * <p>If the Authorization header is missing or the token is invalid,
-     * expired, or blacklisted, the request continues through the filter chain
-     * without authentication being established by this filter.
-     *
-     * @param request the incoming HTTP request
-     * @param response the HTTP response
-     * @param filterChain the filter chain to continue processing the request
-     * @throws ServletException if an error occurs while processing the request
-     * @throws IOException if an input or output error occurs
+     * @param request     the incoming HTTP request
+     * @param response    the HTTP response
+     * @param filterChain the remaining filter chain
+     * @throws ServletException if the rest of the chain fails
+     * @throws IOException      if an I/O error occurs
      */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        final String authorizationHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String email;
+        String authorizationHeader = request.getHeader("Authorization");
 
-        // → Continue without JWT authentication if the request has no bearer token.
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith(BEARER_PREFIX)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // → Remove the "Bearer " prefix to obtain the raw JWT.
-        jwt = authorizationHeader.substring(7);
+        String jwt = authorizationHeader.substring(BEARER_PREFIX.length());
 
-        // → Reject tokens that have been revoked through the token blacklist.
+        // -> Logout blacklists the token, so it must be rejected even though it has not expired
         if (tokenBlacklistService.isBlacklisted(jwt)) {
-            log.warn("Rejected request with blacklisted JWT for URI: {}", request.getRequestURI());
+            log.warn("Rejected blacklisted JWT for URI: {}", request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
         }
 
-        // → Extract the user's email from the token, handling invalid token formats and expiration.
+        Long userId;
         try {
-            email = jwtUtil.extractEmail(jwt);
+            userId = jwtUtil.extractUserId(jwt);
         } catch (ExpiredJwtException e) {
-            log.warn("JWT token is expired: {}", e.getMessage());
+            log.warn("JWT is expired: {}", e.getMessage());
             filterChain.doFilter(request, response);
             return;
-        } catch (MalformedJwtException | SignatureException e) {
-            log.warn("Invalid JWT token: {}", e.getMessage());
-            filterChain.doFilter(request, response);
-            return;
-        } catch (Exception e) {
-            log.error("Error parsing JWT token: {}", e.getMessage());
+        } catch (JwtException | IllegalArgumentException e) {
+            // -> Covers bad signatures, malformed tokens, and tokens issued before the
+            // -> subject changed from email to user id
+            log.warn("Invalid JWT: {}", e.getMessage());
             filterChain.doFilter(request, response);
             return;
         }
 
-        // → Authenticate only when the token contains an email and no authentication exists yet.
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            try {
+                UserPrincipal principal = userIdDetailsService.loadUserById(userId);
 
-            // → Validate the token against the loaded user details before establishing authentication.
-            if (jwtUtil.isTokenValid(jwt, userDetails)) {
                 UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                jwt,
-                                userDetails.getAuthorities()
-                        );
-
-                // → Attach request-specific details and store authentication in the security context.
+                        new UsernamePasswordAuthenticationToken(principal, jwt, principal.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+            } catch (UsernameNotFoundException e) {
+                // -> The account was deleted after this token was issued. Without this catch the
+                // -> exception escapes the filter and the client gets a 500 instead of a 401
+                log.warn("JWT references a user that no longer exists: {}", userId);
             }
         }
 
-        // → Continue processing the request with the current security context.
         filterChain.doFilter(request, response);
     }
 }

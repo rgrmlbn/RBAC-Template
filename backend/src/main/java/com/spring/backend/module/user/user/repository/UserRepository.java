@@ -57,4 +57,11 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
      * Used to block deleting a role that is still in use.
      */
     boolean existsByRolesId(Long roleId);
+
+    /**
+     * Finds a user by id together with their roles and each role's permissions,
+     * in a single query. Used to build the authenticated principal from the JWT.
+     */
+    @EntityGraph(attributePaths = {"roles", "roles.permissions"})
+    Optional<UserEntity> findWithAuthoritiesById(Long id);
 }

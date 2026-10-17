@@ -17,17 +17,21 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.management.relation.Role;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Initializes the application's role-based access control (RBAC) data on startup.
  *
- * <p>Ensures that all permissions declared in {@link Perm} exist in the database,
- * creates the built-in SUPER_ADMIN and USER roles when missing, and synchronizes
- * the SUPER_ADMIN role with all available permissions on every startup.
+ * <p>Keeps the permissions table in sync with {@link Perm}: missing permissions are
+ * created, and permissions no longer declared in code are removed from every role
+ * and deleted. Creates the built-in SUPER_ADMIN and USER roles when missing, and
+ * synchronizes the SUPER_ADMIN role with all available permissions on every startup.
  *
  * <p>Creates the initial SUPER_ADMIN account from application configuration
  * only when no SUPER_ADMIN exists and the configured email is not already in use.
@@ -64,50 +68,28 @@ public class RbacBootstrap implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
 
-        // → Ensure every declared permission exists in the database.
-        Map<String, PermissionEntity> permissions = new HashMap<>();
-        permissionRepository.findAll().forEach(p -> permissions.put(p.getName(), p));
-
-        for (String name : Perm.all()) {
-            // → Create the permission only if it does not already exist in the map.
-            if (!permissions.containsKey(name)) {
-                PermissionEntity permission = PermissionEntity.builder()
-                        .name(name)
-                        .build();
-
-                permission = permissionRepository.save(permission);
-
-                permissions.put(name, permission);
-            }
-        }
+        // → Make the permissions table match the permissions declared in Perm.
+        Map<String, PermissionEntity> permissions = syncPermissions();
 
         // → Create or synchronize the built-in SUPER_ADMIN role.
-        RoleEntity superAdmin = roleRepository.findByName(RoleNames.SUPER_ADMIN).orElseGet(() -> {
-
-            RoleEntity r = RoleEntity.builder()
-                    .name(RoleNames.SUPER_ADMIN)
-                    .description("Full access. Cannot be modified or deleted.")
-                    .systemRole(true)
-                    .build();
-
-            return r;
-        });
+        RoleEntity superAdmin = roleRepository.findByName(RoleNames.SUPER_ADMIN).orElseGet(() ->
+                RoleEntity.builder()
+                        .name(RoleNames.SUPER_ADMIN)
+                        .description("Full access. Cannot be modified or deleted.")
+                        .systemRole(true)
+                        .build());
 
         // → Ensure SUPER_ADMIN always has every declared permission.
         superAdmin.setPermissions(new HashSet<>(permissions.values()));
         superAdmin = roleRepository.save(superAdmin);
 
         // → Create the default USER role only when it does not already exist.
-        roleRepository.findByName(RoleNames.USER).orElseGet(() -> {
-
-            RoleEntity r = RoleEntity.builder()
-                    .name(RoleNames.USER)
-                    .description("Default role for registered users.")
-                    .systemRole(true)
-                    .build();
-
-            return roleRepository.save(r);
-        });
+        roleRepository.findByName(RoleNames.USER).orElseGet(() ->
+                roleRepository.save(RoleEntity.builder()
+                        .name(RoleNames.USER)
+                        .description("Default role for registered users.")
+                        .systemRole(true)
+                        .build()));
 
         // → Create the initial SUPER_ADMIN only with configured credentials,
         //   no existing SUPER_ADMIN, and an unused email.
@@ -127,5 +109,66 @@ public class RbacBootstrap implements ApplicationRunner {
 
             log.info("Bootstrap super admin created: {}", adminEmail);
         }
+    }
+
+    /**
+     * Makes the permissions table match {@link Perm}.
+     *
+     * @return the declared permissions keyed by name; stale permissions are not included
+     */
+    private Map<String, PermissionEntity> syncPermissions() {
+        Set<String> declared = new HashSet<>(Perm.all());
+        Map<String, PermissionEntity> current = new HashMap<>();
+        List<PermissionEntity> stale = new ArrayList<>();
+
+        // → Split the existing permissions into declared ones and stale ones.
+        for (PermissionEntity permission : permissionRepository.findAll()) {
+            if (declared.contains(permission.getName())) {
+                current.put(permission.getName(), permission);
+            } else {
+                stale.add(permission);
+            }
+        }
+
+        // → Create each declared permission that does not exist in the database yet.
+        for (String name : declared) {
+            current.computeIfAbsent(name, n ->
+                    permissionRepository.save(PermissionEntity.builder().name(n).build()));
+        }
+
+        // → Remove permissions that are no longer declared in Perm.
+        if (!stale.isEmpty()) {
+            removeStalePermissions(stale);
+        }
+
+        return current;
+    }
+
+    /**
+     * Detaches the given permissions from every role, then deletes them.
+     *
+     * <p>The detach step must come first: the role_permissions join table references
+     * the permissions table, so deleting a permission that is still assigned fails.
+     *
+     * @param stale the permissions that exist in the database but not in {@link Perm}
+     */
+    private void removeStalePermissions(List<PermissionEntity> stale) {
+        Set<Long> staleIds = stale.stream()
+                .map(PermissionEntity::getId)
+                .collect(Collectors.toSet());
+
+        // → Detach the stale permissions from every role that still holds them.
+        List<RoleEntity> roles = roleRepository.findAll();
+        for (RoleEntity role : roles) {
+            role.getPermissions().removeIf(permission -> staleIds.contains(permission.getId()));
+        }
+        roleRepository.saveAll(roles);
+        roleRepository.flush();
+
+        // → Delete the stale permissions now that no role references them.
+        permissionRepository.deleteAll(stale);
+
+        log.warn("Removed permissions no longer declared in Perm: {}",
+                stale.stream().map(PermissionEntity::getName).toList());
     }
 }

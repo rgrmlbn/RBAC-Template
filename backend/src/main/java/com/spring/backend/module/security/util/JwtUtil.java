@@ -1,14 +1,15 @@
 package com.spring.backend.module.security.util;
 
 import com.spring.backend.module.config.JwtProperties;
+import com.spring.backend.module.security.principal.UserPrincipal;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -20,27 +21,25 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Utility class for generating, extracting, and validating JSON Web Tokens (JWT).
+ * Creates, parses and validates signed JSON Web Tokens (JWT).
  *
- * <p>Uses the configured secret key to sign and verify tokens and obtains
- * token expiration settings from {@link JwtProperties}.
- *
- * <p>The user's username, which represents their email in this application,
- * is stored as the token subject.
+ * <p>Tokens are signed with the secret from {@link JwtProperties}. The token subject is
+ * the user's id, not their email, so a token stays valid when the user changes their email.
+ * Roles and permissions are deliberately not stored in the token; they are loaded from the
+ * database on each request so that changes apply immediately.
  */
 @Component
 @RequiredArgsConstructor
 public class JwtUtil {
 
     private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
+
     private final JwtProperties jwtProperties;
 
     /**
-     * Creates the secret key used to sign and verify JWTs.
+     * Builds the HMAC key used to sign and verify tokens from the configured secret.
      *
-     * <p>The configured secret is converted to bytes using UTF-8 encoding.
-     *
-     * @return the HMAC signing key
+     * @return the signing key
      */
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(
@@ -49,26 +48,25 @@ public class JwtUtil {
     }
 
     /**
-     * Generates an access token for the specified user.
+     * Generates a signed access token whose subject is the user's id.
      *
-     * @param userDetails the authenticated user's details
-     * @return the signed JWT access token
+     * @param principal the authenticated user
+     * @return the compact, signed JWT
      */
-    public String generateAccessToken(UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails.getUsername(), jwtProperties.getAccessTokenExpiration());
+    public String generateAccessToken(UserPrincipal principal) {
+        return generateToken(new HashMap<>(), String.valueOf(principal.getId()),
+                jwtProperties.getAccessTokenExpiration());
     }
 
     /**
-     * Builds and signs a JWT with the supplied claims, subject, and expiration duration.
+     * Builds and signs a JWT.
      *
-     * @param extraClaims additional claims to include in the token
-     * @param subject the token subject, typically the user's email
-     * @param expiration the token's validity duration in milliseconds
-     * @return the compact, signed JWT string
+     * @param extraClaims additional claims to include
+     * @param subject     the token subject
+     * @param expiration  how long the token is valid, in milliseconds
+     * @return the compact, signed JWT
      */
     private String generateToken(Map<String, Object> extraClaims, String subject, long expiration) {
-
-        // → Set the token subject, issue time, expiration time, and signature.
         return Jwts.builder()
                 .claims(extraClaims)
                 .subject(subject)
@@ -79,11 +77,11 @@ public class JwtUtil {
     }
 
     /**
-     * Parses a JWT and extracts all its claims after verifying its signature.
+     * Verifies the token's signature and returns its claims.
      *
      * @param token the JWT to parse
-     * @return the claims contained in the token
-     * @throws JwtException if the token is invalid, expired, or cannot be parsed
+     * @return the token's claims
+     * @throws JwtException if the token is malformed, tampered with or expired
      */
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
@@ -94,67 +92,44 @@ public class JwtUtil {
     }
 
     /**
-     * Extracts a specific claim from a JWT using the provided resolver.
+     * Extracts a single claim using the given resolver.
      *
-     * @param token the JWT containing the claim
-     * @param claimsResolver the function used to retrieve the desired claim
-     * @param <T> the type of the claim value
-     * @return the resolved claim value
+     * @param token          the JWT to read
+     * @param claimsResolver selects the claim from the token's claims
+     * @param <T>            the claim's type
+     * @return the resolved claim
+     * @throws JwtException if the token is invalid or expired
      */
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         return claimsResolver.apply(extractAllClaims(token));
     }
 
     /**
-     * Extracts the subject from a JWT, which represents the user's email.
+     * Returns the user id stored in the token's subject.
      *
-     * @param token the JWT to inspect
-     * @return the email stored in the token subject
+     * @param token the JWT to read
+     * @return the user id
+     * @throws MalformedJwtException if the subject is not a number, as in tokens issued
+     *                               before the subject changed from email to user id
+     * @throws JwtException          if the token is otherwise invalid or expired
      */
-    public String extractEmail(String token) {
-        return extractClaim(token, Claims::getSubject);
+    public Long extractUserId(String token) {
+        String subject = extractClaim(token, Claims::getSubject);
+        try {
+            return Long.valueOf(subject);
+        } catch (NumberFormatException e) {
+            throw new MalformedJwtException("Token subject is not a user id");
+        }
     }
 
     /**
-     * Extracts the expiration timestamp from a JWT.
+     * Returns the token's expiration time.
      *
-     * @param token the JWT to inspect
-     * @return the expiration time as an {@link Instant}
+     * @param token the JWT to read
+     * @return the expiration time
      */
     public Instant extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration).toInstant();
     }
-
-    /**
-     * Checks whether a JWT has expired.
-     *
-     * @param token the JWT to inspect
-     * @return {@code true} if the token's expiration time is before the current time
-     */
-    public boolean isTokenExpired(String token) {
-        return extractExpiration(token).isBefore(Instant.now());
-    }
-
-    /**
-     * Validates a JWT against the supplied user details.
-     *
-     * <p>The token is considered valid when its subject matches the user's
-     * username and its expiration time has not passed.
-     *
-     * @param token the JWT to validate
-     * @param userDetails the user details to compare against the token subject
-     * @return {@code true} if the token matches the user and has not expired;
-     *         {@code false} if validation fails
-     */
-    public boolean isTokenValid(String token, UserDetails userDetails) {
-        try {
-            String email = extractEmail(token);
-
-            // → Ensure the token belongs to the expected user and remains unexpired.
-            return email.equals(userDetails.getUsername()) && !isTokenExpired(token);
-        } catch (JwtException e) {
-            log.warn("Invalid JWT token: {}", e.getMessage());
-            return false;
-        }
-    }
+    
 }
