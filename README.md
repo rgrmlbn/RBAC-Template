@@ -1,6 +1,6 @@
 # RBAC Backend API
 
-A Spring Boot REST API for authentication and role-based access control (RBAC). It provides JWT authentication, user management, roles, and permissions, with authorization enforced using permissions assigned to roles.
+A Spring Boot REST API for authentication and role-based access control (RBAC). It provides JWT authentication, user management, roles, and permissions, with authorization enforced using permissions assigned to roles. The tracked project currently contains the backend API; it does not include a frontend application.
 
 ## Features
 
@@ -14,46 +14,119 @@ A Spring Boot REST API for authentication and role-based access control (RBAC). 
 
 ## Technology
 
-- Java 21 and Spring Boot 3
+- Java 21 and Spring Boot 3.5
 - Spring Web, Spring Security, Spring Data JPA, and Bean Validation
 - MySQL for persistent storage; H2 is available as an alternate profile
 - Redis for login rate limiting and token blacklist support
 - Flyway and Hibernate for database management
 - Maven
 
-## Run locally
+## Clone and run locally
 
-You will need Java 21, MySQL, and Redis. The default `dev` profile uses a local MySQL database named `default` and Redis on `localhost:6379`.
+### Prerequisites
 
-1. Create the MySQL database and make sure MySQL and Redis are running.
-2. Configure the following environment variables (for example, in a local `.env` file):
+- Git
+- Java 21
+- Docker Desktop with Docker Compose (used here to run MySQL and Redis)
 
-   | Variable | Purpose |
-   | --- | --- |
-   | `DB_USERNAME` | MySQL username |
-   | `DB_PASSWORD` | MySQL password |
-   | `JWT_SECRET` | Secret used to sign JWTs; use a strong secret |
-   | `BOOTSTRAP_ADMIN_EMAIL` | Optional initial administrator email |
-   | `BOOTSTRAP_ADMIN_PASSWORD` | Optional initial administrator password |
+### 1. Clone the repository
 
-   The bootstrap administrator is created only when both bootstrap credentials are set and no administrator exists. Keep these credentials out of source control.
-3. From this directory, start the application:
+```bash
+git clone https://github.com/rgrmlbn/Default.git
+cd Default
+```
 
-   ```bash
-   # Windows
-   .\mvnw.cmd spring-boot:run
+### 2. Configure the database container
 
-   # macOS/Linux
-   ./mvnw spring-boot:run
-   ```
+Create a `.env` file in the repository root. The development Compose file reads `DB_PASSWORD` from this file to set MySQL's root password:
 
-The default profile is `dev`. To select another profile, set `SPRING_PROFILES_ACTIVE` to `h2`, `docker`, or `railway` before starting the application. The `docker` and `railway` profiles expect their corresponding database/Redis environment and service configuration; see `src/main/resources/application-*.properties`.
+```dotenv
+DB_PASSWORD=choose_a_local_mysql_password
+```
+
+### 3. Start MySQL and Redis
+
+From the repository root, start the development services:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d
+```
+
+This creates the `default` MySQL database on `localhost:3306` and starts Redis on `localhost:6379`.
+
+### 4. Configure the backend
+
+Create `backend/.env` with the following values. The default `dev` profile reads this file when starting the application:
+
+```dotenv
+DB_USERNAME=root
+DB_PASSWORD=choose_a_local_mysql_password
+JWT_SECRET=replace_with_a_long_random_secret
+RESEND_API_KEY=your_resend_api_key
+OWNER_EMAIL=your_email_address
+```
+
+Use the same value for `DB_PASSWORD` as in the root `.env`. The application configuration refers to `RESEND_API_KEY` and `OWNER_EMAIL`, so provide values for them even if you are not testing email-related behavior. Do not commit either `.env` file.
+
+To create an initial administrator, optionally add both of these variables to `backend/.env`:
+
+```dotenv
+BOOTSTRAP_ADMIN_EMAIL=admin@example.com
+BOOTSTRAP_ADMIN_PASSWORD=choose_a_strong_password
+```
+
+The bootstrap administrator is created only when both credentials are set and no administrator exists.
+
+### 5. Run the backend
+
+From the repository root, run the wrapper from the `backend` directory:
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+The API starts on `http://localhost:8080`. Swagger UI is available at `http://localhost:8080/swagger-ui.html`.
+
+To stop the database and cache containers:
+
+```bash
+docker compose -f docker-compose.dev.yml down
+```
+
+To also delete their persisted data, use `docker compose -f docker-compose.dev.yml down -v`.
+
+### Environment variables
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `DB_USERNAME` | Yes | MySQL username for the backend |
+| `DB_PASSWORD` | Yes | MySQL password; must match the root `.env` value |
+| `JWT_SECRET` | Yes | Secret used to sign JWTs; use a strong, unique secret |
+| `RESEND_API_KEY` | Yes | Resend API key configured by the application |
+| `OWNER_EMAIL` | Yes | Notification email configured by the application |
+| `BOOTSTRAP_ADMIN_EMAIL` | No | Email for optional initial administrator; set with the password below |
+| `BOOTSTRAP_ADMIN_PASSWORD` | No | Password for optional initial administrator; set with the email above |
+
+The root `.env` has one additional variable: `DB_PASSWORD`, used by Docker Compose to initialize MySQL.
+
+### Docker deployment note
+
+`docker-compose.yml` is not currently a working full-stack setup for a fresh clone: it references a `frontend/` build that is not tracked in this repository, and its Docker networking/database settings do not match the supplied configuration. Use `docker-compose.dev.yml` for MySQL and Redis, then run the backend as described above. The `docker` and `railway` Spring profiles require deployment-specific configuration; see `backend/src/main/resources/application-*.properties`.
 
 To run tests:
 
-```bash
+```powershell
+cd backend
 .\mvnw.cmd test
 ```
+
+On macOS/Linux, use `cd backend` followed by `./mvnw test`.
 
 ## Authentication
 
@@ -143,6 +216,23 @@ When the application is running, Swagger UI is available at:
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
 ## Project structure
+
+```text
+.
+├── docker-compose.dev.yml  # MySQL and Redis for local backend development
+├── docker-compose.yml      # Full-stack compose file (see deployment note above)
+└── backend/
+    ├── Dockerfile
+    ├── pom.xml
+    ├── mvnw / mvnw.cmd
+    └── src/
+        ├── main/
+        │   ├── java/com/spring/backend/
+        │   └── resources/   # Spring profiles and Flyway migrations
+        └── test/
+```
+
+The main backend packages are organized as follows:
 
 ```text
 src/main/java/com/spring/backend/
