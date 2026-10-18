@@ -1,7 +1,6 @@
 # RBAC Backend API
 
-A Spring Boot REST API for authentication and role-based access control (RBAC). It provides JWT authentication, user management, roles, and permissions, with authorization enforced using permissions assigned to roles. The tracked project currently contains the backend API; it does not include a frontend application.
-
+A Spring Boot REST API for authentication and role-based access control (RBAC). It provides JWT authentication, user management, roles, and permissions, with authorization enforced using permissions assigned to roles.
 ## Features
 
 - User registration and login with BCrypt password hashing.
