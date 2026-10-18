@@ -46,6 +46,8 @@ public class LoginRateLimiterServiceImpl implements LoginRateLimiterService {
         checkIpLimit(ipExtractor.getClientIp());
     }
 
+    // HELPER
+
     /**
      * Enforces the configured login-attempt limit for an email address.
      *
