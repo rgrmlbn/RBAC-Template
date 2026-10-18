@@ -32,7 +32,7 @@ A Spring Boot REST API for authentication and role-based access control (RBAC). 
 
 ```bash
 git clone https://github.com/rgrmlbn/RBAC-Template.git
-cd Default
+cd RBAC-Template
 ```
 
 ### 2. Configure the database container
@@ -116,7 +116,7 @@ The root `.env` has one additional variable: `DB_PASSWORD`, used by Docker Compo
 
 ### Docker deployment note
 
-`docker-compose.yml` is not currently a working full-stack setup for a fresh clone: it references a `frontend/` build that is not tracked in this repository, and its Docker networking/database settings do not match the supplied configuration. Use `docker-compose.dev.yml` for MySQL and Redis, then run the backend as described above. The `docker` and `railway` Spring profiles require deployment-specific configuration; see `backend/src/main/resources/application-*.properties`.
+Use `docker-compose.dev.yml` for MySQL and Redis, then run the backend as described above. The `docker` and `railway` Spring profiles require deployment-specific configuration; see `backend/src/main/resources/application-*.properties`.
 
 To run tests:
 
